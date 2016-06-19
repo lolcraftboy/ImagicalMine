@@ -2,25 +2,20 @@
 
 /*
  *
- *  _                       _           _ __  __ _
- * (_)                     (_)         | |  \/  (_)
- *  _ _ __ ___   __ _  __ _ _  ___ __ _| | \  / |_ _ __   ___
- * | | '_ ` _ \ / _` |/ _` | |/ __/ _` | | |\/| | | '_ \ / _ \
- * | | | | | | | (_| | (_| | | (_| (_| | | |  | | | | | |  __/
- * |_|_| |_| |_|\__,_|\__, |_|\___\__,_|_|_|  |_|_|_| |_|\___|
- *                     __/ |
- *                    |___/
+ *  ____            _        _   __  __ _                  __  __ ____  
+ * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \ 
+ * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
+ * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/ 
+ * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_| 
  *
- * This program is a third party build by ImagicalMine.
- *
- * PocketMine is free software: you can redistribute it and/or modify
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author ImagicalMine Team
- * @link http://forums.imagicalcorp.ml/
- *
+ * @author PocketMine Team
+ * @link http://www.pocketmine.net/
+ * 
  *
 */
 
@@ -29,15 +24,15 @@
  */
 namespace pocketmine\network\protocol;
 
-interface Info
-{
 
-    /**
-     * Actual Minecraft: PE protocol version
-     */
-    const CURRENT_PROTOCOL = 81;
-    const ACCEPTED_PROTOCOLS = [81];
-    const LOGIN_PACKET = 0x01;
+interface Info{
+
+	/**
+	 * Actual Minecraft: PE protocol version
+	 */
+	const CURRENT_PROTOCOL = 81;
+
+	const LOGIN_PACKET = 0x01;
 	const PLAY_STATUS_PACKET = 0x02;
 	const SERVER_TO_CLIENT_HANDSHAKE_PACKET = 0x03;
 	const CLIENT_TO_SERVER_HANDSHAKE_PACKET = 0x04;
@@ -102,3 +97,14 @@ interface Info
 	const REPLACE_SELECTED_ITEM_PACKET = 0x40;
 	const ADD_ITEM_PACKET = 0x41;
 }
+
+
+
+
+
+
+
+
+
+
+
