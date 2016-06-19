@@ -1,10 +1,23 @@
 <?php
-/**
- * src/pocketmine/network/Network.php
- *
- * @package default
- */
 
+/*
+ *
+ *  ____            _        _   __  __ _                  __  __ ____
+ * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
+ * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
+ * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
+ * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * @author PocketMine Team
+ * @link http://www.pocketmine.net/
+ *
+ *
+*/
 
 /**
  * Network-related classes
@@ -30,6 +43,7 @@ use pocketmine\network\protocol\DataPacket;
 use pocketmine\network\protocol\DropItemPacket;
 use pocketmine\network\protocol\FullChunkDataPacket;
 use pocketmine\network\protocol\Info;
+use pocketmine\network\protocol\RequestChunkRadiusPacket;
 use pocketmine\network\protocol\SetEntityLinkPacket;
 use pocketmine\network\protocol\BlockEntityDataPacket;
 use pocketmine\network\protocol\EntityEventPacket;
@@ -62,26 +76,16 @@ use pocketmine\network\protocol\TakeItemEntityPacket;
 use pocketmine\network\protocol\BlockEventPacket;
 use pocketmine\network\protocol\UpdateBlockPacket;
 use pocketmine\network\protocol\UseItemPacket;
+use pocketmine\network\protocol\SetPlayerGameTypePacket;
 use pocketmine\network\protocol\PlayerListPacket;
-use pocketmine\network\protocol\PlayerInputPacket;
 use pocketmine\Player;
 use pocketmine\Server;
 use pocketmine\utils\Binary;
+use pocketmine\utils\MainLogger;
 
-class Network {
+class Network{
 
 	public static $BATCH_THRESHOLD = 512;
-
-	/** @deprecated CHANNEL - 0.13*/
-	const CHANNEL_NONE = 0;
-	const CHANNEL_PRIORITY = 1; //Priority channel, only to be used when it matters
-	const CHANNEL_WORLD_CHUNKS = 2; //Chunk sending
-	const CHANNEL_MOVEMENT = 3; //Movement sending
-	const CHANNEL_BLOCKS = 4; //Block updates or explosions
-	const CHANNEL_WORLD_EVENTS = 5; //Entity, level or tile entity events
-	const CHANNEL_ENTITY_SPAWNING = 6; //Entity spawn/despawn channel
-	const CHANNEL_TEXT = 7; //Chat and other text stuff
-	const CHANNEL_END = 31;
 
 	/** @var \SplFixedArray */
 	private $packetPool;
@@ -100,11 +104,7 @@ class Network {
 
 	private $name;
 
-	/**
-	 *
-	 * @param Server  $server
-	 */
-	public function __construct(Server $server) {
+	public function __construct(Server $server){
 
 		$this->registerPackets();
 
@@ -112,64 +112,38 @@ class Network {
 
 	}
 
-
-	/**
-	 *
-	 * @param unknown $upload
-	 * @param unknown $download
-	 */
-	public function addStatistics($upload, $download) {
+	public function addStatistics($upload, $download){
 		$this->upload += $upload;
 		$this->download += $download;
 	}
 
-
-	/**
-	 *
-	 * @return unknown
-	 */
-	public function getUpload(): int{
+	public function getUpload(){
 		return $this->upload;
 	}
 
-
-	/**
-	 *
-	 * @return unknown
-	 */
-	public function getDownload(): int{
+	public function getDownload(){
 		return $this->download;
 	}
 
-
-	/**
-	 *
-	 */
-	public function resetStatistics() {
+	public function resetStatistics(){
 		$this->upload = 0;
 		$this->download = 0;
 	}
 
-
 	/**
-	 *
 	 * @return SourceInterface[]
 	 */
-	public function getInterfaces(): array{
+	public function getInterfaces(){
 		return $this->interfaces;
 	}
 
-
-	/**
-	 *
-	 */
-	public function processInterfaces() {
-		foreach ($this->interfaces as $interface) {
+	public function processInterfaces(){
+		foreach($this->interfaces as $interface){
 			try {
 				$interface->process();
-			}catch(\Throwable $e) {
+			}catch(\Throwable $e){
 				$logger = $this->server->getLogger();
-				if (\pocketmine\DEBUG > 1) {
+				if(\pocketmine\DEBUG > 1){
 					$logger->logException($e);
 				}
 
@@ -180,118 +154,89 @@ class Network {
 		}
 	}
 
-
 	/**
-	 *
 	 * @param SourceInterface $interface
 	 */
-	public function registerInterface(SourceInterface $interface) {
+	public function registerInterface(SourceInterface $interface){
 		$this->interfaces[$hash = spl_object_hash($interface)] = $interface;
-		if ($interface instanceof AdvancedSourceInterface) {
+		if($interface instanceof AdvancedSourceInterface){
 			$this->advancedInterfaces[$hash] = $interface;
 			$interface->setNetwork($this);
 		}
 		$interface->setName($this->name);
 	}
 
-
 	/**
-	 *
 	 * @param SourceInterface $interface
 	 */
-	public function unregisterInterface(SourceInterface $interface) {
+	public function unregisterInterface(SourceInterface $interface){
 		unset($this->interfaces[$hash = spl_object_hash($interface)],
 			$this->advancedInterfaces[$hash]);
 	}
 
-
 	/**
 	 * Sets the server name shown on each interface Query
 	 *
-	 * @param string  $name
+	 * @param string $name
 	 */
-	public function setName($name) {
+	public function setName($name){
 		$this->name = (string) $name;
-		foreach ($this->interfaces as $interface) {
+		foreach($this->interfaces as $interface){
 			$interface->setName($this->name);
 		}
 	}
 
-
-	/**
-	 *
-	 * @return unknown
-	 */
-	public function getName(): string{
+	public function getName(){
 		return $this->name;
 	}
 
-
-	/**
-	 *
-	 */
-	public function updateName() {
-		foreach ($this->interfaces as $interface) {
+	public function updateName(){
+		foreach($this->interfaces as $interface){
 			$interface->setName($this->name);
 		}
 	}
 
-
 	/**
-	 *
-	 * @param int     $id    0-255
-	 * @param string  $class
+	 * @param int        $id 0-255
+	 * @param DataPacket $class
 	 */
-	public function registerPacket($id, $class) {
+	public function registerPacket($id, $class){
 		$this->packetPool[$id] = new $class;
 	}
 
-
-	/**
-	 *
-	 * @return unknown
-	 */
-	public function getServer(): Server{
+	public function getServer(){
 		return $this->server;
 	}
 
-
-	/**
-	 *
-	 * @param BatchPacket $packet
-	 * @param Player      $p
-	 */
-	public function processBatch(BatchPacket $packet, Player $p) {
+	public function processBatch(BatchPacket $packet, Player $p){
 		$str = zlib_decode($packet->payload, 1024 * 1024 * 64); //Max 64MB
 		$len = strlen($str);
 		$offset = 0;
 		try{
-			while ($offset < $len) {
+			while($offset < $len){
 				$pkLen = Binary::readInt(substr($str, $offset, 4));
 				$offset += 4;
 
 				$buf = substr($str, $offset, $pkLen);
 				$offset += $pkLen;
-				//@todo backward compatible for 0.13 was
-				//if(($pk = $this->getPacket(ord($buf{0}))) !== null){
-				if (($pk = $this->getPacket(ord($buf{0}))) !== null) {
-					if ($pk::NETWORK_ID === Info::BATCH_PACKET) {
+
+				if(($pk = $this->getPacket(ord($buf{0}))) !== null){ // #blameshoghi
+					if($pk::NETWORK_ID === Info::BATCH_PACKET){
 						throw new \InvalidStateException("Invalid BatchPacket inside BatchPacket");
 					}
-					//@todo backward compatible for 0.13 was
-					//$pk->setBuffer($buf, 1);
-					$pk->setBuffer($buf, 1); //blameshoghi
+
+					$pk->setBuffer($buf, 1);
 
 					$pk->decode();
 					$p->handleDataPacket($pk);
 
-					if ($pk->getOffset() <= 0) {
+					if($pk->getOffset() <= 0){
 						return;
 					}
 				}
 			}
-		}catch(\Throwable $e) {
-			if (\pocketmine\DEBUG > 1) {
+		}catch(\Throwable $e){
+			if(\pocketmine\DEBUG > 1){
 				$logger = $this->server->getLogger();
 				$logger->debug("BatchPacket " . " 0x" . bin2hex($packet->payload));
 				$logger->logException($e);
@@ -299,16 +244,15 @@ class Network {
 		}
 	}
 
-
 	/**
+	 * @param $id
 	 *
-	 * @param unknown $id
 	 * @return DataPacket
 	 */
-	public function getPacket($id) {
+	public function getPacket($id){
 		/** @var DataPacket $class */
 		$class = $this->packetPool[$id];
-		if ($class !== null) {
+		if($class !== null){
 			return clone $class;
 		}
 		return null;
@@ -316,35 +260,29 @@ class Network {
 
 
 	/**
-	 *
-	 * @param string  $address
-	 * @param int     $port
-	 * @param string  $payload
+	 * @param string $address
+	 * @param int    $port
+	 * @param string $payload
 	 */
-	public function sendPacket($address, $port, $payload) {
-		foreach ($this->advancedInterfaces as $interface) {
+	public function sendPacket($address, $port, $payload){
+		foreach($this->advancedInterfaces as $interface){
 			$interface->sendRawPacket($address, $port, $payload);
 		}
 	}
 
-
 	/**
 	 * Blocks an IP address from the main interface. Setting timeout to -1 will block it forever
 	 *
-	 * @param string  $address
-	 * @param int     $timeout (optional)
+	 * @param string $address
+	 * @param int    $timeout
 	 */
-	public function blockAddress($address, $timeout = 300) {
-		foreach ($this->advancedInterfaces as $interface) {
+	public function blockAddress($address, $timeout = 300){
+		foreach($this->advancedInterfaces as $interface){
 			$interface->blockAddress($address, $timeout);
 		}
 	}
 
-
-	/**
-	 *
-	 */
-	private function registerPackets() {
+	private function registerPackets(){
 		$this->packetPool = new \SplFixedArray(256);
 
 		$this->registerPacket(ProtocolInfo::LOGIN_PACKET, LoginPacket::class);
@@ -393,11 +331,9 @@ class Network {
 		$this->registerPacket(ProtocolInfo::BLOCK_ENTITY_DATA_PACKET, BlockEntityDataPacket::class);
 		$this->registerPacket(ProtocolInfo::FULL_CHUNK_DATA_PACKET, FullChunkDataPacket::class);
 		$this->registerPacket(ProtocolInfo::SET_DIFFICULTY_PACKET, SetDifficultyPacket::class);
+		$this->registerPacket(ProtocolInfo::SET_PLAYER_GAMETYPE_PACKET, SetPlayerGameTypePacket::class);
 		$this->registerPacket(ProtocolInfo::PLAYER_LIST_PACKET, PlayerListPacket::class);
-		$this->registerPacket(ProtocolInfo::PLAYER_INPUT_PACKET, PlayerInputPacket::class);
-		$this->registerPacket(ProtocolInfo::REQUEST_CHUNK_RADIUS_PACKET, protocol\RequestChunkRadiusPacket::class);
-		$this->registerPacket(ProtocolInfo::CHUNK_RADIUS_UPDATED_PACKET, protocol\ChunkRadiusUpdatedPacket::class);
+		$this->registerPacket(ProtocolInfo::REQUEST_CHUNK_RADIUS_PACKET, RequestChunkRadiusPacket::class);
+		$this->registerPacket(ProtocolInfo::CHUNK_RADIUS_UPDATED_PACKET, ChunkRadiusUpdatedPacket::class);
 	}
-
-
 }
